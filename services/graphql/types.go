@@ -16,7 +16,7 @@ type Inadimplente struct {
 type ResponseData struct {
 	Data struct {
 		Mk01 struct {
-			Inadimplentes30Dias []Inadimplente `json:"inadimplentes_30dias"`
+			Inadimplentes30Dias []Inadimplente `json:"inadimplentes_45dias"`
 		} `json:"mk01"`
 	} `json:"data"`
 }
