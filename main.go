@@ -6,14 +6,16 @@ import (
 	"os"
 
 	"golang-telegram-connection-status-checker/services/graphql"
+	"golang-telegram-connection-status-checker/services/junior"
+	"golang-telegram-connection-status-checker/utils"
 
 	"github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
 // IDs autorizados para interagir com o bot
 var authorizedUserIDs = map[int64]bool{
-	1441826228: true, // Substitua com os IDs reais permitidos
-	987654321:  true, // Adicione mais IDs conforme necessário
+	1441826228: true,
+	987654321:  true,
 }
 
 // Armazena o estado do comando para cada usuário
@@ -30,7 +32,7 @@ func main() {
 	}
 
 	// Ativa o modo de depuração
-	bot.Debug = true
+	bot.Debug = false
 	log.Printf("Bot autorizado como %s", bot.Self.UserName)
 
 	// Configuração de atualização
@@ -67,6 +69,8 @@ func main() {
 				bot.Send(tgbotapi.NewMessage(update.CallbackQuery.Message.Chat.ID, "Bot iniciado!"))
 			case "/inadimplentes":
 				handleInadimplentes(bot, update.CallbackQuery.Message)
+			case "/relatorio":
+				handleRelatorio(bot, update.CallbackQuery.Message)
 			}
 
 			// Envia uma confirmação do callback
@@ -88,9 +92,10 @@ func isAuthorizedUser(userID int) bool {
 func showInlineMenu(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 	startButton := tgbotapi.NewInlineKeyboardButtonData("Iniciar o bot", "/start")
 	inadimplentesButton := tgbotapi.NewInlineKeyboardButtonData("Verificar inadimplentes", "/inadimplentes")
+	relatorioButton := tgbotapi.NewInlineKeyboardButtonData("Gerar relatório", "/relatorio") // Novo botão
 
 	inlineKeyboard := tgbotapi.NewInlineKeyboardMarkup(
-		tgbotapi.NewInlineKeyboardRow(startButton, inadimplentesButton),
+		tgbotapi.NewInlineKeyboardRow(startButton, inadimplentesButton, relatorioButton), // Inclui o botão de relatorio
 	)
 
 	menuMessage := tgbotapi.NewMessage(msg.Chat.ID, "Escolha uma das opções:")
@@ -203,4 +208,93 @@ func handleInadimplentes(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 	if err != nil {
 		log.Printf("Erro ao enviar a mensagem final: %v", err)
 	}
+}
+
+// Função para tratar o comando de gerar o relatório
+func handleRelatorio(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
+	log.Println("Comando /relatorio recebido")
+	logger := utils.ConfigureLogger()
+
+	userID := int64(msg.From.ID)
+	if commandStatus[userID] {
+		log.Println("Comando já executado, aguardando...")
+		bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Você já executou este comando. Por favor, aguarde."))
+		return
+	}
+
+	commandStatus[userID] = true
+	defer func() {
+		commandStatus[userID] = false
+		log.Println("Comando liberado para novo uso.")
+	}()
+
+	bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Gerando relatório, por favor aguarde..."))
+
+	// Consultar inadimplentes através do GraphQL para 30 dias
+	query30 := `
+	query MyQuery {
+		mk01 {
+			inadimplentes_30dias(limit: 10) {
+				codcontrato
+				conexao_bloqueada
+				esta_reduzida
+				ip_comunicacao
+				nome_razaosocial
+				nome_revenda
+				username
+			}
+		}
+	}
+	`
+	inadimplentes30, err := graphql.FetchInadimplentes(query30)
+	if err != nil {
+		log.Printf("Erro ao consultar inadimplentes 30 dias: %v", err)
+		bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Erro ao consultar inadimplentes de 30 dias."))
+		return
+	}
+
+	// Consultar inadimplentes através do GraphQL para 45 dias
+	query45 := `
+	query MyQuery {
+		mk01 {
+			inadimplentes_45dias(limit: 10) {
+				codcontrato
+				conexao_bloqueada
+				esta_reduzida
+				ip_comunicacao
+				nome_razaosocial
+				nome_revenda
+				username
+			}
+		}
+	}
+	`
+	inadimplentes45, err := graphql.FetchInadimplentes(query45)
+	if err != nil {
+		log.Printf("Erro ao consultar inadimplentes 45 dias: %v", err)
+		bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Erro ao consultar inadimplentes de 45 dias."))
+		return
+	}
+
+	// Combine as listas de inadimplentes
+	inadimplentes := append(inadimplentes30, inadimplentes45...)
+
+	// Salvar os dados em um arquivo CSV
+	if err := junior.SaveToCSV(inadimplentes, logger); err != nil {
+		log.Printf("Erro ao salvar o CSV: %v", err)
+		bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Erro ao gerar o relatório CSV."))
+		return
+	}
+
+	// Enviar o arquivo CSV gerado
+	file := tgbotapi.NewDocumentUpload(msg.Chat.ID, "inadimplentes.csv")
+	_, err = bot.Send(file)
+	if err != nil {
+		log.Printf("Erro ao enviar o arquivo CSV: %v", err)
+		bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Erro ao enviar o relatório CSV."))
+		return
+	}
+
+	// Enviar confirmação de sucesso
+	bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Relatório gerado com sucesso!"))
 }

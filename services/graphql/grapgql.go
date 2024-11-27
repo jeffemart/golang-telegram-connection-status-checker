@@ -2,12 +2,12 @@
 package graphql
 
 import (
-	"os"
 	"bytes"
 	"encoding/json"
 	"fmt"
 	"golang-telegram-connection-status-checker/utils"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -26,7 +26,7 @@ func FetchInadimplentes(query string) ([]Inadimplente, error) {
 
 	// Cabeçalhos para autenticação
 	headers := map[string]string{
-		"Content-Type":         "application/json",
+		"Content-Type":          "application/json",
 		"x-hasura-admin-secret": os.Getenv("HASURA_SECRET"),
 	}
 
