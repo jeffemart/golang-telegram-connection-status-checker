@@ -129,7 +129,7 @@ func handleInadimplentes(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 	query := `
 	query MyQuery {
 		mk01 {
-			inadimplentes_30dias(limit: 10) {
+			inadimplentes_45dias {
 				codcontrato
 				conexao_bloqueada
 				esta_reduzida
@@ -193,7 +193,7 @@ func handleInadimplentes(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 
 	// Formatar a resposta
 	response := fmt.Sprintf(
-		"Resumo dos inadimplentes de 30 dias:\n\n"+
+		"Resumo dos inadimplentes de 45 dias:\n\n"+
 			"Total de inadimplentes: %d\n"+
 			"Conexão Bloqueada (S): %d\n"+
 			"Conexão Não Bloqueada (N): %d\n"+
@@ -234,7 +234,7 @@ func handleRelatorio(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 	query30 := `
 	query MyQuery {
 		mk01 {
-			inadimplentes_30dias(limit: 10) {
+			inadimplentes_30dias {
 				codcontrato
 				conexao_bloqueada
 				esta_reduzida
@@ -257,7 +257,7 @@ func handleRelatorio(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 	query45 := `
 	query MyQuery {
 		mk01 {
-			inadimplentes_45dias(limit: 10) {
+			inadimplentes_45dias {
 				codcontrato
 				conexao_bloqueada
 				esta_reduzida
