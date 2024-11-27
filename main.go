@@ -125,8 +125,8 @@ func handleInadimplentes(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 
 	bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Consultando inadimplentes, por favor aguarde..."))
 
-	// Consultar inadimplentes
-	query := `
+	// Consultar inadimplentes através do GraphQL para 45 dias
+	query_inadimplentes := `
 	query MyQuery {
 		mk01 {
 			inadimplentes_45dias {
@@ -142,12 +142,15 @@ func handleInadimplentes(bot *tgbotapi.BotAPI, msg *tgbotapi.Message) {
 	}
 	`
 
-	inadimplentes, err := graphql.FetchInadimplentes(query)
+	inadimplentes, err := graphql.FetchInadimplentes(query_inadimplentes)
+	log.Printf("Total inadimplentes retornados: %d", len(inadimplentes))
+
 	if err != nil {
 		log.Printf("Erro ao buscar inadimplentes: %v", err)
 		bot.Send(tgbotapi.NewMessage(msg.Chat.ID, "Erro ao consultar inadimplentes."))
 		return
 	}
+
 
 	// Verificar se inadimplentes foi retornado corretamente
 	if len(inadimplentes) == 0 {
